@@ -1,0 +1,225 @@
+---
+title: "practice_health"
+author: "Josh Manuel"
+date: "2024-07-02"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(corrplot)
+
+health_data <- read.csv("healthcaredataset.csv")
+head(health_data)
+```
+## 1a.	(5%) Are there any missing values in the data? (in frequency)
+Yes, Creditscore= 2510; balance = 721; has.creditcard = 112; gender = 1423
+
+```{r}
+colSums(is.na(health_data))
+
+health_data$Date.of.Admission <- ymd(health_data$Date.of.Admission)
+health_data$Discharge.Date <- ymd(health_data$Discharge.Date)
+health_data$Gender <- as.factor(health_data$Gender)
+levels(health_data$Gender) = c("Male", "Female", "Female")
+
+```
+## 1a.	(5%) Are there any missing values in the data? (in frequency)
+Yes, Creditscore= 2510; balance = 721; has.creditcard = 112; gender = 1423
+```{r}
+health_data%>%
+  ggplot(aes(x = "", y = Age))+
+  geom_boxplot()+
+  geom_point()
+
+health_data %>%
+  ggplot(aes(x = "", y = Age)) +
+  geom_boxplot(outlier.colour = "red", outlier.shape = 16, outlier.size = 2) +
+  labs(title = "Boxplot of Age with Outliers Highlighted",
+       y = "Age") +
+  facet_wrap(~Medical.Condition)+
+  theme_minimal()
+
+```
+```{r}
+MC_Count <-health_data%>%
+  count(Medical.Condition)
+  
+MC_Max <- MC_Count%>%
+  filter(n == max(n))%>%
+  pull(Medical.Condition)
+
+health_data <- health_data%>%
+  mutate(fill_color = ifelse(Medical.Condition == MC_Max, "blue", "red"))
+
+HD_plot <- health_data%>%
+  ggplot(aes(Medical.Condition, fill = fill_color))+
+  geom_bar()+
+  labs(title = "Amount of each medical condition cases")+
+  theme_minimal()
+
+pltly_HD_Plot <- ggplotly(HD_plot)
+pltly_HD_Plot
+```
+Using plotly
+```{r}
+# Aggregate the data
+agg_data <- health_data %>%
+  count(Blood.Type, Gender)
+
+# Create the plot
+p <- ggplot(agg_data, aes(x = Blood.Type, y = n, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Gender Distribution by Blood Type",
+       x = "Blood Type",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Convert ggplot to plotly
+plotly_plot <- ggplotly(p)
+
+# Display the plot
+plotly_plot
+
+```
+Plotly
+```{r}
+  agg_data_2 <- health_data%>%
+  count(Medical.Condition, Admission.Type)
+
+  p <- ggplot(agg_data_2,aes(x = Medical.Condition, y = n, fill = Admission.Type))+
+    geom_bar(stat = "identity", position = "dodge")+
+    labs(title = "Medical condition vs admission type")+
+    theme_minimal()
+  
+  plotly_plot2 <- ggplotly(p)
+  
+  plotly_plot2
+  
+  
+
+```
+```{r}
+condition_data <- health_data %>%
+  count(Medical.Condition)
+plotly_pie <- plot_ly(condition_data, labels = ~Medical.Condition, values = ~n, type = 'pie') %>%
+  layout(title = 'Distribution of Medical Conditions')
+
+
+
+plotly_pie
+```
+
+```{r}
+p_box <- ggplot(health_data, aes(x = Medical.Condition, y = Billing.Amount)) +
+  geom_boxplot(fill = c("lightblue")) +
+  labs(title = "Box Plot of Billing Amount by Medical COndition",
+       x = "Medical Condition",
+       y = "Billing Amount") +
+  theme_minimal()
+plotly_box <- ggplotly(p_box)
+plotly_box
+```
+
+
+```{r}
+outlier_detect <- function(x) {
+  q1 <- quantile(x, 0.25, na.rm = TRUE)
+  q3 <- quantile(x, 0.75, na.rm = TRUE)
+  IQR <- q3 - q1
+  return(x < (q1 - 1.5 * IQR) | x > (q3 + 1.5 * IQR))
+}
+
+# Identify outliers
+health_data <- health_data %>%
+  group_by(Test.Results) %>%
+  mutate(outlier = outlier_detect(Age)) %>%
+  ungroup()
+
+# Count outliers
+outlier_counts <- health_data %>%
+  filter(outlier) %>%
+  count(Test.Results)
+
+
+
+```
+
+```{r}
+p <- health_data %>%
+  ggplot(aes(x = Test.Results, y = Age, fill = Test.Results)) +
+  geom_boxplot(outlier.colour = "red", outlier.shape = 16, outlier.size = 2, alpha = 0.5) +
+  theme_minimal() +
+  labs(
+    title = "Age Range by Test Results",
+    x = "Test Results",
+    y = "Age Range"
+  ) +
+  theme(legend.position = "none")
+
+# Convert the ggplot to an interactive plotly plot
+plotly_plot <- ggplotly(p)
+
+# Display the plot
+plotly_plot
+
+```
+
+
+
+```{r}
+ui <- dashboardPage(
+  dashboardHeader(title = "Health Data Dashboard"),
+  dashboardSidebar(),
+  dashboardBody(
+    fluidRow(
+      box(
+        selectInput("gender_select", "Select Gender:", 
+                choices = c("All", unique(health_data$Gender)), selected = "All"),
+    selectInput("bloodtype_select", "Select Blood Type:", 
+                choices = c("All", unique(health_data$Blood.Type)), selected = "All")
+      )
+    ),
+    fluidRow(
+      box(
+        title = "Gender Distribution by Blood Type",
+        status = "primary",
+        solidHeader = TRUE,
+        plotOutput("gender_bloodtype_plot", height = 400)
+      )
+    )
+  )
+)
+
+server <- function(input, output) {
+  output$gender_bloodtype_plot <- renderPlot({
+    filtered_data <- health_data
+    
+    if (input$gender_select != "All") {
+      filtered_data <- filtered_data %>% filter(Gender == input$gender_select)
+    }
+    
+    if (input$bloodtype_select != "All") {
+      filtered_data <- filtered_data %>% filter(Blood.Type == input$bloodtype_select)
+    }
+    
+    filtered_data %>%
+      ggplot(aes(x = Blood.Type, fill = Gender)) +
+      geom_bar(position = "dodge") +
+      labs(title = "Gender Distribution by Blood Type",
+           x = "Blood Type",
+           y = "Count") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  })
+}
+
+# Run the app
+shinyApp(ui, server)
+
+
+
+
+```
