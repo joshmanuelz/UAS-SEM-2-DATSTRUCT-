@@ -1,0 +1,214 @@
+---
+title: "MidExam_Answer"
+author: "UTS"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# A. ESSAY 
+
+1.	[LO 1, 5%] What are three common data quality issues that can impact analysis? 
+*Answer:* 
+•	Missing values: When data points are absent from a dataset.
+•	Inaccuracy: Errors in data entry or inconsistencies in data formats.
+•	Incompleteness: When necessary, data points are not included in the dataset.
+•	Inconsistency: Variations in how data is represented within the dataset.
+•	Duplication: When the same data record appears multiple times.
+
+
+2.	[LO 1, 3%] Are there situations where data normalization might not be necessary or even undesirable? Explain your reasoning. 
+
+*Answer:*  
+- Specific Algorithms: Some machine learning algorithms, particularly neural networks, are designed to handle data with varying scales. They have internal mechanisms to learn and adjust for the importance of different features during the training process. Normalization might not significantly improve performance and could even disrupt the learning process in these cases.
+
+- Interpretability: Normalization can obscure the original meaning of the data, making it harder to interpret the model's results. If understanding the relationship between features and predictions is crucial, using the data in its original scale might be preferable.
+
+- Domain Knowledge: If you have strong domain knowledge about the relationships between features, you might be able to engineer specific transformations that are more effective than generic normalization techniques. These transformations could preserve the meaning of the data while still improving the model's performance.
+
+3.	[LO 1, 7%] Scenario: You are analyzing data from a university containing information about student grades, study habits, and demographics. You are investigating the relationship between gender and course enrollment in different departments (e.g., Math, English, History).
+
+a.	Visualization: Identify the most appropriate data visualization type for this scenario. Explain your reasoning.
+*Answer:*  
+A crosstab (also called a contingency table) is the most suitable visualization. Crosstabs display the frequency distribution of two categorical variables, revealing potential relationships.
+
+b.	Insights: Briefly describe the insights you would expect to gain from the chosen visualization.
+*Answer:*  
+The crosstab would show if there are any enrollment biases based on gender, with departments having a higher or lower percentage of male or female students.
+
+
+# B. CODES
+```{r}
+library(ggplot2)  # Load ggplot2 package
+BankChurn <- read.csv("C:/Users/noviyanti.sagala/OneDrive - Bina Nusantara/WORK/Teaching Material/Even 23-24/abc/Review Soal UTS Genap 2024/UTS_DTSC6013001_D6464/BankChurn.csv")
+```
+
+
+## 1a.	(5%) Are there any missing values in the data? (in frequency)
+Yes, Creditscore= 2510; balance = 721; has.creditcard = 112; gender = 1423
+
+```{r}
+colSums(is.na(BankChurn))
+```
+
+## 1a. (5%) Are there any missing values in the data? If so, calculate the percentage of missing values present for each feature.
+Yes, Creditscore = 25,10%; bqlance : 7.21%; gender: 14.23%; has.credit.card: 1.12%
+
+**option 1**
+```{r}
+missing_percentages <- round(colMeans(is.na(BankChurn)) * 100, 2)
+missing_percentages
+```
+**Option 2**
+```{r}
+percent_missing <- apply(is.na(BankChurn), 2, function(x) sum(x) / length(x) * 100)
+percent_missing
+```
+
+## 1b.	(8%) Apply the most suitable imputation technique to numerical missing values (from point 2a) and display the imputed data, highlighting changes
+
+Creditscore (25% missing):
+
+Possible Techniques: Both mean and median imputation are reasonable options for creditscore. Since the missing value percentage is relatively high (25%), consider using a more robust method like median imputation. The median is less sensitive to outliers compared to the mean.
+
+MEDIAN BANK CHURN-> 651
+
+
+Balance (7.21% missing):
+Possible Techniques: Due to the lower missing value percentage (7.21%), either mean or median imputation could be suitable. Since balance might be right-skewed (having more values towards the lower end), median imputation could be a safer choice to avoid the influence of potential outliers on the mean.
+
+MEAN BALANCE: 76515.23
+```{r}
+# Function to impute missing values (choose mean or median based on argument)
+missing_creditscore <- is.na(BankChurn$CreditScore)
+if (any(missing_creditscore)) {
+  BankChurn$CreditScore[missing_creditscore]<- median(BankChurn$CreditScore, na.rm = TRUE)
+}
+
+missing_balance <- is.na(BankChurn$Balance)
+if (any(missing_balance)) {
+  BankChurn$Balance[missing_balance]<- mean(BankChurn$Balance, na.rm = TRUE)
+}
+```
+
+## 1c. (8%) Apply the most suitable imputation technique to categorical missing values (from point 1a) and display the imputed data, highlighting changes.
+
+Mode IMputatiion:
+Gender --> Female; Has.CreditCard --> NO or '0'
+
+```{r}
+BankChurn[, "Has.Credit.Card"] <- factor(BankChurn[, "Has.Credit.Card"], labels = c("No", "Yes"))
+
+# Check for missing values in gender and score
+  missing_gender <- is.na(BankChurn$Gender)
+  missing_creditCard <- is.na(BankChurn$Has.Credit.Card)
+
+if (any(missing_gender)) {
+    mode_value <- names(table(BankChurn[!missing_gender, "Gender"]))[1]
+    BankChurn$Gender[missing_gender] <- mode_value
+}
+  
+  if (any(missing_creditCard)) {
+    mode_value1 <- names(table(BankChurn[!missing_creditCard, "Has.Credit.Card"]))[1]
+    BankChurn$Has.Credit.Card[missing_creditCard] <- mode_value1
+  }
+
+```
+
+## 1d. Identify and visualize potential outliers in the data that could significantly influence analysis.
+```{r}
+bank_churn %>% 
+  ggplot(aes(y = CreditScore)) +
+  geom_boxplot()
+
+```
+
+## 2a.	(12%) Create a graph showing the churn rate (percentage of customers who leave the bank) for active and inactive credit card users. Briefly explain if there's a difference in churn rate between these groups.
+```{r}
+# Define active and inactive users (replace with your criteria)
+active_users <- BankChurn[BankChurn$Is.Active.Member == 1, ]
+inactive_users <- BankChurn[BankChurn$Is.Active.Member == 0, ]
+
+# Calculate churn rates
+active_churn_rate <- sum(active_users$Churn) / nrow(active_users) * 100
+inactive_churn_rate <- sum(inactive_users$Churn) / nrow(inactive_users) * 100
+
+# Create the bar chart
+ggplot(aes(x = Is.Active.Member, y = churn_rate), data = data.frame(Is.Active.Member = c("Active", "Inactive"), churn_rate = c(active_churn_rate, inactive_churn_rate))) +
+  geom_bar(stat = "identity", fill = c("green", "red")) +  # Adjust colors as desired
+  labs(title = "Churn Rate by Activity Level", x = "Activity Level", y = "Churn Rate (%)") +
+  annotate("text", x = c("Active", "Inactive"), y = c(active_churn_rate, inactive_churn_rate) + 2,  # Adjust label position
+  label = c(paste0(round(active_churn_rate), "%"), paste0(round(inactive_churn_rate), "%")),  # Round percentages
+          hjust = "center") +
+  theme_classic()
+```
+*interpretation:*
+
+Higher Churn Rate for Inactive Users: The chart shows a significantly higher churn rate for inactive users compared to active users, this suggests that customers who don't engage with your product or service are more likely to churn. This could be due to a lack of value perception, forgetfulness, or finding alternatives.
+
+
+## 2b.	(18%) Create a graph to show how customer tenure (months) varies across geographic locations, considering churn status. Briefly explain the relationship between these factors based on the graph.
+
+```{r}
+#option1 (boxplot)
+ggplot(BankChurn, aes(x = factor(Geography), y = Tenure, color = factor(Churn))) +
+  geom_boxplot() +
+  labs(title = "Customer Tenure by Location and Churn Status",
+       x = "Geographic Location",
+       y = "Customer Tenure (Months)") +
+  theme_classic()
+
+#option2 (violin)
+ggplot(BankChurn, aes(x = factor(Geography), y = Tenure, color = factor(Churn))) +
+  geom_violin() +
+  labs(title = "Customer Tenure by Location and Churn Status",
+       x = "Geographic Location",
+       y = "Customer Tenure (Months)") +
+  theme_classic()
+
+```
+INterpretation:
+Look for differences in the spread of the boxes (representing tenure distribution) across locations and churn statuses.
+Higher median tenure (represented by the line in the middle of the box) for a particular location and churn status might indicate a more loyal customer base in that location for churned or non-churned customers.
+Larger box sizes (representing spread of data points) suggest greater variation in tenure within that location and churn status group.
+
+
+## 3a.	(15%) Use statistical tests to determine if there's a statistically significant relationship between two categorical features you choose from the data. Explain what the test results tell you about the relationship between these features.
+
+Categorical vs. Categorical (Chi-Square Test):
+###### Is there a significant association between customer Gender and churn status?
+```{r}
+# Replace 'gender' with actual gender indicator
+BankChurn$Gender <- ifelse(BankChurn$Gender  == "Female", 1, 0)  
+
+# Create a contingency table
+contingency_table <- table(BankChurn$Gender, BankChurn$Churn)
+
+# Perform Chi-Square test
+chisq_test <- chisq.test(contingency_table)
+chisq_test
+```
+Thr p-value is less than 0.05, we can reject the null hypothesis (no association between gender and churn) and conclude that there's a statistically significant relationship between gender and churn status. This means the proportion of churned customers might be different for males and females.
+We would need further analysis (e.g., looking at proportions of churned customers within each gender group) to understand the nature of the relationship.
+
+
+## 3b.	(15%) Calculate correlation coefficients between numerical features in the data. Highlight any strong correlations that might be linked to customer churn. Briefly explain how these correlations might influence a customer's likelihood of leaving the bank.
+
+```{r}
+# Get all numerical features
+numerical_features <- c(3,6,7,8,9,12,13)
+
+# Calculate correlation matrix
+correlation_matrix <- cor(BankChurn[, numerical_features])
+correlation_matrix
+```
+interpretation:
+
+All the numerical features have low correlation values (either positive or negative) with Churn, it suggests that there is likely no strong linear relationship between these features and customer churn.
+In simpler terms, the changes in the numerical features you analyzed (age, balance, and other numerical features in this case) don't have a clear and significant linear association with whether a customer churns or not.
+
+
+
+
+
