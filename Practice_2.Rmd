@@ -1,0 +1,71 @@
+---
+title: "Practice_1"
+author: "Josh Manuel"
+date: "2024-06-04"
+output : html_document
+
+```{r}
+library(tidyr)
+library(ggplot2)
+library(dplyr)
+library(datasets)
+
+#read csv file
+data("airquality")
+summary(airquality)
+head(airquality)
+```
+Find how many na values in datasets
+## 1a. (5%) Are there any missing values in the data? If so, calculate the percentage of missing values present for each feature.
+
+- with colSums function we can determine that the na value in Ozone is 37 and Solar.R is 7.
+    Ozone Solar.R    Wind    Temp   Month     Day 
+     37       7       0       0       0       0 
+     
+     
+- than create a new variable "missing_percentages" to find percentage of na values/column
+  Ozone Solar.R    Wind    Temp   Month     Day 
+  24.18    4.58    0.00    0.00    0.00    0.00 
+  
+  
+```{r}
+#check na values in each columns
+colSums(is.na(airquality))
+
+missing_percentages <- round(colMeans(is.na(airquality))*100, 2)
+missing_percentages
+
+```
+## 1b.	(8%) Apply the most suitable imputation technique to numerical missing values (from point 2a) and display the imputed data, highlighting changes
+
+columns with na values then get imputated to change the na values to median or mean. then check if function works and update the na values to median/mean.
+
+#check if the missing values is already updated with median value
+sum(is.na(airquality))
+hasil -> [1] 0
+
+```{r}
+#after checking na values, there are a total of 44 na values
+
+missing_ozone <- is.na(airquality$Ozone)
+if(any(missing_ozone)){
+  airquality$Ozone[missing_ozone] <- median(airquality$Ozone, na.rm = TRUE)
+}
+
+missing_Solar <- is.na(airquality$Solar.R)
+if(any(missing_Solar)){
+  airquality$Solar.R[missing_Solar] <- median(airquality$Solar.R, na.rm = TRUE)
+}
+
+#check if the missing values is already updated with median value
+sum(is.na(airquality))
+
+```
+## 1d. Identify and visualize potential outliers in the data that could significantly influence analysis.
+```{r}
+airquality %>% 
+  ggplot(aes(y = Ozone)) +
+  geom_boxplot()
+
+
+```
